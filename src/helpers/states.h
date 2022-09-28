@@ -78,3 +78,18 @@ static void getStateString(char* outStr, State s) {
             break;
     }
 }
+
+static void setLaunchsondeState(State s) {
+    previousState = currentState;
+    currentState = s;
+    char msgBuf[64];
+    char stateBuf[32];
+    getStateString(stateBuf, s);
+    sprintf(msgBuf, "Setting launchsonde state to: %s", stateBuf);
+
+    #ifdef DIAGNOSTIC_MODE
+        Serial.println(msgBuf); // DEBUG
+    #endif
+    // sendDiagnosticData(INFO, msgBuf); //Broken. Requires further testing
+    // TODO: switch-case with the state and set LED color based off state (See RGBDiagnostics enum)
+}
