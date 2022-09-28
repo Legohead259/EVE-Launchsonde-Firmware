@@ -6,9 +6,7 @@
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
 #include <Adafruit_SHT31.h>
-#include <Adafruit_BMP3XX.h>
 #include <LoRa.h>
-#include <Adafruit_DotStar.h>
 #include "helpers/EVEHelper.h"
 
 #define BATT_VOLTAGE_THRESHOLD 2.5 // V
@@ -50,39 +48,26 @@ bool calDataLoaded;
 // SHT instantiations
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
-// BMP388 instantiation
-Adafruit_BMP3XX bmp;
-float initialPressure = 1013.25; //hPa
-bool isInitialPressCal = false;
-
-// // Telemetry instantiation
-// Telemetry data;
-
 // ===========================
 // === PROTOTYPE FUNCTIONS ===
 // ===========================
 
 
-void blinkCode(byte code, uint32_t color);
-void setLaunchsondeState(State state);
 void initFileSystem();
 void initRadio();
 void initGPS();
 void initBNO055();
-void initBMP388();
 void initSHT31();
 void executeCommand(Command cmd, byte msg);
 bool checkBattVoltage();
 void pollGPS();
 void pollBNO055();
-void pollBMP388();
 void pollSHT31();
 bool checkSensorsReady(); 
 void printTelemetryData();
 void printBaseStationTelemetry();
 void sendDiagnosticData(LogLevel, char*);
 void radioCallback(int);
-bool calibrateInitialPressure();
 void loadIMUCalData();
 void launch();
 void ppsHandler(void);
@@ -407,16 +392,6 @@ void pollGPS() {
     }
 }
 
-void pollBMP388() {
-    if (!bmp.performReading()) {
-        Serial.println("Failed to get BMP388 reading"); // DEBUG
-        // sendDiagnosticData(ERROR, "Failed to get BMP388 reading"); // Broken for now, requires further testing
-    }
-    data.baroTemp = bmp.temperature;
-    data.pressure = bmp.pressure;
-    data.altitude = bmp.readAltitude(initialPressure);
-}
-
 void pollBNO055() {
     bno.getCalibration(&data.sysCal, &data.gyroCal, &data.accelCal, &data.magCal);
     if (bno.isFullyCalibrated()) { //Don't read IMU data unless sensors are calibrated
@@ -536,28 +511,6 @@ void initGPS() {
     Serial.println("done!"); //DEBUG
 }
 
-void initBMP388() {
-    Serial.print("Initializing BMP388...");
-    if (!bmp.begin_I2C()) {   // hardware I2C mode
-        Serial.println("Failed to initialize BMP388!"); // DEBUG
-        setLaunchsondeState(ALT_FAIL);
-        while (1) { // Blocks further code execution
-            blinkCode((byte) ALTIMETER_ERROR_CODE, RED);
-            // sendDiagnosticData(FATAL, "Failed to initialize BMP388"); // Broken, requires further testing 
-        }
-    }
-    // Set up oversampling and filter initialization
-    bmp.setTemperatureOversampling(BMP3_OVERSAMPLING_8X);
-    bmp.setPressureOversampling(BMP3_OVERSAMPLING_4X);
-    bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_3);
-    bmp.setOutputDataRate(BMP3_ODR_50_HZ);
-    Serial.println("done!");
-
-    Serial.print("Calibrating initial pressure...");
-    while(!calibrateInitialPressure()); //Block code execution until initial pressure is calibrated
-    Serial.println("done!");
-}
-
 void initBNO055() {
     Serial.print("Initializing IMU..."); //DEBUG
     if (!bno.begin()) {
@@ -585,38 +538,6 @@ void initSHT31() {
 }
 
 
-// ==============================
-// ===DIAGNOSTIC LED FUNCTIONS===
-// ==============================
-
-
-void blinkCode(byte code, uint32_t color) {
-    bool dash = true;
-    for (int n=0; n<4; n++) {
-        if (bitRead(code, n)) {
-            if (dash) {
-                strip.setPixelColor(0, color); strip.show();
-                delay(DASH_ON);
-                strip.setPixelColor(0, OFF); strip.show();
-                delay(BLINK_INTERVAL);
-            }
-            else {
-                strip.setPixelColor(0, color); strip.show();
-                delay(DOT_ON);
-                strip.setPixelColor(0, OFF); strip.show();
-                delay(BLINK_INTERVAL);
-            }
-        }
-        else {
-            if (dash) delay(DASH_ON+BLINK_INTERVAL);
-            else delay(DOT_ON+BLINK_INTERVAL);
-        }
-        dash = !dash;
-    }
-    delay(MESSAGE_INTERVAL);
-}
-
-
 //=======================
 //===UTILITY FUNCTIONS===
 //=======================
@@ -629,41 +550,6 @@ void printUnknownSentence(const MicroNMEA& nmea) {
 void ppsHandler(void) {
 	ppsTriggered = true;
 	// Serial.println(\triggered!"); //DEBUG
-}
-
-bool calibrateInitialPressure() {
-	int failzone = 1; //Looks for +/- 1m condition
-    double total = 0;
-    const uint8_t reps = 10;
-    for (uint8_t i = 0; i < reps; i++) {
-        bmp.performReading();
-        total += bmp.pressure;
-        // Serial.print("Pressure: "); Serial.println(bmp.pressure);
-        delay(100); //Minimum sample interval. Default is 66
-    }
-    initialPressure = total / reps / 100; // hPa
-    // Serial.print("Pressure: "); Serial.print(initialPressure/100); Serial.print("\t Altitude:"); Serial.println(bmp.readAltitude(initialPressure/100)); //DEBUG
-    // Serial.printf("Pressure: %d, Altitude: %d ...", initialPressure, bmp.readAltitude(initialPressure));
-
-    if (bmp.readAltitude(initialPressure) < failzone && bmp.readAltitude(initialPressure) > -failzone) { //Check if the altitude is truely zeroed
-		isInitialPressCal = true;
-        return true;
-	}
-    else {
-        return false;
-	}
-}
-
-void setLaunchsondeState(State s) {
-    prevState = data.state;
-    data.state = s;
-    char msgBuf[64];
-    char stateBuf[32];
-    getStateString(stateBuf, s);
-    sprintf(msgBuf, "Setting launchsonde state to: %s", stateBuf);
-    Serial.println(msgBuf); // DEBUG
-    // sendDiagnosticData(INFO, msgBuf); //Broken. Requires further testing
-    // TODO: switch-case with the state and set LED color based off state (See RGBDiagnostics enum)
 }
 
 bool checkSensorsReady() {
