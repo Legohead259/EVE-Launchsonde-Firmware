@@ -14,5 +14,8 @@
 // Command helper
 #include "commands.h"
 
-// DotStar Helper
-#include "dotstar/dotstar.h"
+// DotStar helper
+#include "dotstar.h"
+
+// Sensor helpers
+#include "sensors/sensors.h"

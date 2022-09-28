@@ -1,4 +1,4 @@
-#include "../pins.h"
+#include "pins.h"
 #include <Adafruit_DotStar.h>
 
 #define NUM_PIXELS 1
@@ -52,7 +52,7 @@ enum ErrorCode {
 #define BLINK_INTERVAL 125
 #define MESSAGE_INTERVAL 1000
 
-extern Adafruit_DotStar strip;
+Adafruit_DotStar strip(1, DOTSTAR_DATA_PIN, DOTSTAR_CLK_PIN, DOTSTAR_RBG);
 const uint32_t OFF      =  strip.Color(0, 0, 0);       //BGR
 const uint32_t WHITE    =  strip.Color(255, 255, 255);
 const uint32_t BLUE     =  strip.Color(255, 0, 0);
