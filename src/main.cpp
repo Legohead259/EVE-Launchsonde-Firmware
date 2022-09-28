@@ -1,4 +1,4 @@
-#include "EVE_Util.h"
+#include "helpers/pins.h"
 #include <SPI.h>
 #include <SD.h>
 #include <MicroNMEA.h>
@@ -9,6 +9,7 @@
 #include <Adafruit_BMP3XX.h>
 #include <LoRa.h>
 #include <Adafruit_DotStar.h>
+#include "helpers/EVEHelper.h"
 
 #define BATT_VOLTAGE_THRESHOLD 2.5 // V
 #define COUNTDOWN_TIME 10 // s
@@ -53,23 +54,6 @@ Adafruit_SHT31 sht31 = Adafruit_SHT31();
 Adafruit_BMP3XX bmp;
 float initialPressure = 1013.25; //hPa
 bool isInitialPressCal = false;
-
-// DotStar instantiation
-#define DASH_ON 250
-#define DOT_ON 125
-#define BLINK_INTERVAL 125
-#define MESSAGE_INTERVAL 1000
-
-Adafruit_DotStar strip(NUM_PIXELS, DOTSTAR_DATA_PIN, DOTSTAR_CLK_PIN, DOTSTAR_RGB);
-const uint32_t OFF      =  strip.Color(0, 0, 0);       //BGR
-const uint32_t WHITE    =  strip.Color(255, 255, 255);
-const uint32_t BLUE     =  strip.Color(255, 0, 0);
-const uint32_t RED      =  strip.Color(0, 0, 255);
-const uint32_t GREEN    =  strip.Color(0, 255, 0);
-const uint32_t PURPLE   =  strip.Color(255, 0, 255);
-const uint32_t AMBER    =  strip.Color(0, 191, 255);
-const uint32_t CYAN     =  strip.Color(255, 255, 0);
-const uint32_t LIME     =  strip.Color(0, 255, 125);
 
 // // Telemetry instantiation
 // Telemetry data;
@@ -170,7 +154,7 @@ void loop() {
 	strip.setPixelColor(0, isInDiagMode ? BLUE : GREEN);
 	strip.show();
 
-	static long _lastSample = 0;
+	static long unsigned int _lastSample = 0;
 	if (millis() > _lastSample+SAMPLE_TIME) {
 		_lastSample = millis();
 		pollGPS();
@@ -256,6 +240,7 @@ void sendDiagnosticData(LogLevel level, char* msg) {
 void radioCallback(int packetSize) {
     if (packetSize == 0) return;
 
+    // 
     byte sender = LoRa.read();
     byte destination = LoRa.read();
     if (destination != UUID) return; // Ignore received messages if not the intended receiver
@@ -328,19 +313,19 @@ void launch() {
     if (data.state == ARMED && checkSensorsReady()) { //Check if system is armed and sensors are ready for flight
         setLaunchsondeState(LAUNCHING);
 
-        //Countdown sequence
-        long startMillis = millis();
+        // Countdown sequence
+        long unsigned int startMillis = millis();
         while (data.state == LAUNCHING && millis() < startMillis+COUNTDOWN_TIME*1000) { //Countdown to launch while system is armed
             loop(); //Continue sending data and listening for commands. There is still the opportunity to cancel here
         }
 
-        //Ignition
+        // Ignition
         if (data.state == LAUNCHING) { //Check if system is go for launch. This will only be true if the launch was not canceled in the countdown sequence
             // sendDiagnosticData(WARN, "LAUNCH!"); // Broken, needs more testing
             digitalWrite(IGNITE_PIN, HIGH); //LAUNCH! This will cause current to flow to ignitor hopefully catching the propellent and igniting more. Short will automatically be broken after ignition
         }
 
-        //Verify flight condition
+        // Verify flight condition
         if (data.state == LAUNCHING && millis() >= startMillis+COUNTDOWN_TIME*1000) { //Check if system is go for launch and countdown has ended
             while (millis() < startMillis+(COUNTDOWN_TIME+SAMPLE_TIME)*1000) { //Sample data to determine flight
                 loop(); // Continue collecting data

@@ -1,0 +1,5 @@
+enum PacketType {
+    TELEMETRY_PACKET,
+    LOG_PACKET,
+    COMMAND_PACKET
+};
