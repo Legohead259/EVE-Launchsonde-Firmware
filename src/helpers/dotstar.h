@@ -62,3 +62,30 @@ const uint32_t PURPLE   =  strip.Color(255, 0, 255);
 const uint32_t AMBER    =  strip.Color(0, 191, 255);
 const uint32_t CYAN     =  strip.Color(255, 255, 0);
 const uint32_t LIME     =  strip.Color(0, 255, 125);
+
+// Functions
+static void blinkCode(byte code, uint32_t color) {
+    bool dash = true;
+    for (int n=0; n<4; n++) {
+        if (bitRead(code, n)) {
+            if (dash) {
+                strip.setPixelColor(0, color); strip.show();
+                delay(DASH_ON);
+                strip.setPixelColor(0, OFF); strip.show();
+                delay(BLINK_INTERVAL);
+            }
+            else {
+                strip.setPixelColor(0, color); strip.show();
+                delay(DOT_ON);
+                strip.setPixelColor(0, OFF); strip.show();
+                delay(BLINK_INTERVAL);
+            }
+        }
+        else {
+            if (dash) delay(DASH_ON+BLINK_INTERVAL);
+            else delay(DOT_ON+BLINK_INTERVAL);
+        }
+        dash = !dash;
+    }
+    delay(MESSAGE_INTERVAL);
+}
