@@ -20,10 +20,10 @@
 
 // Hardware instantiation
 const PROGMEM char UUID_FILENAME[9] = "UUID.txt";
-byte UUID = 0xFF; // Default UUID is 0xFF to indicate no UUID is set yet
+byte UUID = UUID_DEF; // Default UUID is 0xFF to indicate no UUID is set yet
 bool isUUIDConfig = false;
 const PROGMEM byte RECEIVER_UUID = 0x00; // Default receiver UUID is 0x00
-bool isInDiagMode = false; // By default the hardware will be in FLIGHT mode. DIAG is selecting by setting D13 HIGH
+bool isInDiagMode = true; // By default the hardware will be in FLIGHT mode. DIAG is selecting by setting D13 HIGH
 State prevState;
 
 // Filesystem instantiation
@@ -82,6 +82,7 @@ const uint32_t LIME     =  strip.Color(0, 255, 125);
 void blinkCode(byte code, uint32_t color);
 void setLaunchsondeState(State state);
 void initFileSystem();
+void initRadio();
 void initGPS();
 void initBNO055();
 void initBMP388();
@@ -132,7 +133,9 @@ void setup() {
     
     setLaunchsondeState(BOOTING); // System is on and initializing
 
-    initFileSystem();
+
+    // initFileSystem();
+    initRadio();
     initGPS();
     // initBNO055();
     initBMP388();
@@ -176,13 +179,13 @@ void loop() {
 		pollSHT31();
 
 		// Format timestamp
-		char _buf[64];
-		sprintf(_buf, "%04d-%02d-%02dT%s", data.year, data.month, data.day, data.timestamp);
+		// char _buf[64];
+		// sprintf(_buf, "%04d-%02d-%02dT%s", data.year, data.month, data.day, data.timestamp);
 
-		// Write to log file
-		File _dataFile = SD.open(filename, FILE_WRITE);
-		_dataFile.printf("%s,%0.3f,%0.3f,%0.3f,%0.3f\r\n", _buf, data.pressure, data.altitude, data.humidity, data.shtTemp);
-		_dataFile.close();
+		// // Write to log file
+		// File _dataFile = SD.open(filename, FILE_WRITE);
+		// _dataFile.printf("%s,%0.3f,%0.3f,%0.3f,%0.3f\r\n", _buf, data.pressure, data.altitude, data.humidity, data.shtTemp);
+		// _dataFile.close();
 	}
     data.packetSize = sizeof(data);
 
