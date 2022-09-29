@@ -1,4 +1,4 @@
-enum State {
+enum State_t {
     // Nominal states
     BOOTING,                    // Package is initializing
     STANDBY,                    // Package has initialized and is calibrating sensors
@@ -23,10 +23,9 @@ enum State {
     FILE_SYSTEM_FAIL = -9       // File system failed to initialize properly
 };
 
-State previousState;
-State currentState;
+State_t previousState;
 
-static void getStateString(char* outStr, State s) {
+static void getStateString(char* outStr, State_t s) {
     switch(s) {
         case BOOTING:
             strcpy(outStr, "BOOTING");
@@ -79,9 +78,9 @@ static void getStateString(char* outStr, State s) {
     }
 }
 
-static void setLaunchsondeState(State s) {
-    previousState = currentState;
-    currentState = s;
+static void setLaunchsondeState(State_t s) {
+    previousState = (State_t) data.state;
+    data.state = s;
     char msgBuf[64];
     char stateBuf[32];
     getStateString(stateBuf, s);

@@ -35,6 +35,6 @@ struct Telemetry {
     float imuTemp;              // °Celsius from the IMU
     float shtTemp;              // °Celsius (ambient) from the SHT31-D sensor
     float humidity;              // % from the SHT31-D sensor
-    State state;                // State reported by the launchsonde.
+    int8_t state;                // State reported by the launchsonde.
     uint8_t packetSize;         // The size of the telemetry packet. Used as a debug tool for ground station/launchsonde comms.
 } data;

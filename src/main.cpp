@@ -2,28 +2,13 @@
 #include <SPI.h>
 #include <SD.h>
 #include <MicroNMEA.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BNO055.h>
-#include <utility/imumaths.h>
 #include <Adafruit_SHT31.h>
-#include <LoRa.h>
 #include "helpers/EVEHelper.h"
 
 #define BATT_VOLTAGE_THRESHOLD 2.5 // V
-#define COUNTDOWN_TIME 10 // s
-#define SAMPLE_TIME 50 // ms
 
-#ifndef UUID_DEF
-	#define UUID_DEF 0xFF
-#endif 
-
-// Hardware instantiation
-const PROGMEM char UUID_FILENAME[9] = "UUID.txt";
-byte UUID = UUID_DEF; // Default UUID is 0xFF to indicate no UUID is set yet
-bool isUUIDConfig = false;
-const PROGMEM byte RECEIVER_UUID = 0x00; // Default receiver UUID is 0x00
 bool isInDiagMode = true; // By default the hardware will be in FLIGHT mode. DIAG is selecting by setting D13 HIGH
-State prevState;
+State_t prevState;
 
 // Filesystem instantiation
 char filename[13];
@@ -39,12 +24,6 @@ float lastMillis = millis();
 float curMillis = 0;
 float curMSecond = 0;
 
-// IMU Instantiations
-Adafruit_BNO055 bno = Adafruit_BNO055(-1, 0x28);
-adafruit_bno055_offsets_t offsets; //struct for the calibration offsets to be saved into memory and loaded.
-uint8_t sysCal, gyroCal, accelCal, magCal = 0;
-bool calDataLoaded;
-
 // SHT instantiations
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
@@ -54,22 +33,13 @@ Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
 
 void initFileSystem();
-void initRadio();
 void initGPS();
-void initBNO055();
 void initSHT31();
-void executeCommand(Command cmd, byte msg);
 bool checkBattVoltage();
 void pollGPS();
-void pollBNO055();
 void pollSHT31();
-bool checkSensorsReady(); 
 void printTelemetryData();
 void printBaseStationTelemetry();
-void sendDiagnosticData(LogLevel, char*);
-void radioCallback(int);
-void loadIMUCalData();
-void launch();
 void ppsHandler(void);
 
 void setup() {
@@ -174,179 +144,6 @@ void loop() {
 }
 
 
-//=====================
-//===RADIO FUNCTIONS===
-//=====================
-
-
-/*
-Packet structure:
----IMPLICIT HEADERS---
-1. Sender UUID
-2. Destination UUID
-3. Payload type (telemetry, log, command)
-
----TELEMETRY PAYLOAD---
-4a. Telemetry data structure
-5a. End packet
-
----DIAGNOSTIC PAYLOAD---
-4b. Log level
-5b. Log message
-6b. End packet
-
----COMMAND PAYLOAD---
-4c. Command identifier
-5c. Command message (if applicable)
-6c. End packet
-*/
-
-void sendTelemetryData() {
-    LoRa.beginPacket();
-    LoRa.write(UUID);
-    LoRa.write(RECEIVER_UUID);
-    LoRa.write(TELEMETRY_PACKET);
-    LoRa.write((uint8_t*)&data, data.packetSize);
-    LoRa.endPacket();
-    LoRa.receive();
-}
-
-void sendDiagnosticData(LogLevel level, char* msg) {
-    LoRa.beginPacket();
-    LoRa.write(UUID);
-    LoRa.write(RECEIVER_UUID);
-    LoRa.write(LOG_PACKET);
-    LoRa.write((byte) level);
-    LoRa.print(msg);
-    LoRa.endPacket();
-    LoRa.receive();
-}
-
-void radioCallback(int packetSize) {
-    if (packetSize == 0) return;
-
-    // 
-    byte sender = LoRa.read();
-    byte destination = LoRa.read();
-    if (destination != UUID) return; // Ignore received messages if not the intended receiver
-    byte packetType = LoRa.read();
-    if (packetType != COMMAND_PACKET) return; //Ignore any packets that aren't command packets
-    byte cmdIdent = LoRa.read();
-    byte cmdMsg;
-    if (packetSize != 0) cmdMsg = LoRa.read(); // Remaining data is the command message
-    executeCommand((Command) cmdIdent, cmdMsg); // Grab command identifier from radio packet and execute appropriate command
-    //Additional processing for command messages???
-}
-
-
-//=======================
-//===COMMAND FUNCTIONS===
-//=======================
-
-
-void executeCommand(Command cmd, byte msg) {
-    switch (cmd) {
-    case ARM:
-        Serial.println("ARMING"); //DEBUG
-        if (data.state == READY) {
-            setLaunchsondeState(ARMED);
-        }
-        break;
-    case DISARM:
-        Serial.println("DISARMING"); //DEBUG
-        if (data.state == ARMED) {
-            setLaunchsondeState(prevState);
-        }
-        break;
-    case LAUNCH:
-        launch();
-        Serial.println("LAUNCHING"); //DEBUG
-        break;
-    case ZERO_ALT:
-        Serial.print("Calibrating altimeter..."); //DEBUG
-        while (!calibrateInitialPressure()); //Block program while altimeter recalibrates
-        Serial.println("done"); //DEBUG
-        break;
-    case CAL_IMU:
-        Serial.println("CALIBRATING IMU"); //DEBUG
-        loadIMUCalData();
-        break;
-    case RECORD_IMU:
-        Serial.println("RECORDING IMU CALIBRATION"); //DEBUG
-        setLaunchsondeState(IMU_RECORDING);
-        calDataLoaded = false;
-        while (!bno.isFullyCalibrated()) { //Enter blocking loop until sensors are calibrated. Probably need some sort of interrupt to exit
-            pollBNO055();
-            // sendTelemetryData();
-            Serial.printf("Calibration: SYS=%d, GYRO=%d, ACCEL=%d, MAG=%d \n", data.sysCal, data.gyroCal, data.accelCal, data.magCal); //DEBUG
-        }
-        bno.getSensorOffsets(offsets); // Set calibration offsets
-        calDataLoaded = true;
-        Serial.println("done");
-        break;
-    default:
-        char errorMsg[64]; // Create buffer for error message
-        sprintf(errorMsg, "Unknown command received: 0x%02X", (byte) cmd); //Load error message buffer
-        // Keep disabled until radio testing can occur. Possibly brokwn due to code crashes with undefined UUID. Maybe try after implementing UUID?
-        // sendDiagnosticData(WARN, errorMsg); //Send error message as diagnostic data to ground station
-        Serial.println(errorMsg); //DEBUG
-        break;
-    }
-}
-
-void launch() {
-    if (data.state == ARMED && checkSensorsReady()) { //Check if system is armed and sensors are ready for flight
-        setLaunchsondeState(LAUNCHING);
-
-        // Countdown sequence
-        long unsigned int startMillis = millis();
-        while (data.state == LAUNCHING && millis() < startMillis+COUNTDOWN_TIME*1000) { //Countdown to launch while system is armed
-            loop(); //Continue sending data and listening for commands. There is still the opportunity to cancel here
-        }
-
-        // Ignition
-        if (data.state == LAUNCHING) { //Check if system is go for launch. This will only be true if the launch was not canceled in the countdown sequence
-            // sendDiagnosticData(WARN, "LAUNCH!"); // Broken, needs more testing
-            digitalWrite(IGNITE_PIN, HIGH); //LAUNCH! This will cause current to flow to ignitor hopefully catching the propellent and igniting more. Short will automatically be broken after ignition
-        }
-
-        // Verify flight condition
-        if (data.state == LAUNCHING && millis() >= startMillis+COUNTDOWN_TIME*1000) { //Check if system is go for launch and countdown has ended
-            while (millis() < startMillis+(COUNTDOWN_TIME+SAMPLE_TIME)*1000) { //Sample data to determine flight
-                loop(); // Continue collecting data
-                if (data.altitude > 1.5 && data.linAccelX > 1.5) { //Check if altitude has increased and there is a vertical linear acceleration
-                    // sendDiagnosticData(INFO, "Flight confirmed"); // Broken, needs more testing
-                    setLaunchsondeState(FLIGHT); //Presume that if these conditions are met, launch was successful
-                    return;
-                }
-            }
-            digitalWrite(IGNITE_PIN, LOW); // Stops shorting the ignitor to preserve power and prevent damage
-            // sendDiagnosticData(FATAL, "FLIGHT NOT CONFRIMED! SAFING..."); // Broken, needs more testing
-            setLaunchsondeState(IGN_FAIL); //Presume that if launch conditions aren't met during sample time, the ignitor failed
-        }
-    }
-    // else {
-        // if (data.state != ARMED)
-            // sendDiagnosticData(ERROR, "Launch command received but, system is not armed"); // Broken, needs more testing
-        // else 
-            // sendDiagnosticData(ERROR, "Launch command received but, sensors are not ready for flight");  // Broken, needs more testing
-    // }
-}
-
-void loadIMUCalData() {
-    if (calDataLoaded) {
-        bno.setSensorOffsets(offsets); // Load offset data to BNO sensor
-        if (bno.isFullyCalibrated()) {
-            // sendDiagnosticData(INFO, "Calibration data loaded successfully");
-            Serial.println("Calibration data loaded successfully!"); //DEBUG
-            return;
-        }
-    }
-    // sendDiagnosticData(WARN, "Calibration data not loaded");
-    Serial.println("Calibration data not loaded"); //DEBUG
-}
-
-
 //=======================
 //===POLLING FUNCTIONS===
 //=======================
@@ -392,38 +189,6 @@ void pollGPS() {
     }
 }
 
-void pollBNO055() {
-    bno.getCalibration(&data.sysCal, &data.gyroCal, &data.accelCal, &data.magCal);
-    if (bno.isFullyCalibrated()) { //Don't read IMU data unless sensors are calibrated
-        imu::Vector<3> accel = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);    // - m/s^2
-        imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);         // - rad/s
-        imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);            // - degrees
-        imu::Vector<3> linaccel = bno.getVector(Adafruit_BNO055::VECTOR_LINEARACCEL);   // - m/s^2
-
-        //Add accelerometer data to data packet            
-        data.accelX = accel.x();
-        data.accelY = accel.y();
-        data.accelZ = accel.z();
-
-        //Add gyroscope data to data packet
-        data.gyroX = gyro.x();
-        data.gyroY = gyro.y();
-        data.gyroZ = gyro.z();
-        
-        //Add euler rotation data to data packet
-        data.roll = euler.z();
-        data.pitch = euler.y();
-        data.yaw = euler.x();
-
-        //Add linear accleration data to data packet
-        data.linAccelX = linaccel.x();
-        data.linAccelY = linaccel.y();
-        data.linAccelZ = linaccel.z();
-    }
-
-    data.imuTemp = bno.getTemp();
-}
-
 void pollSHT31() {
     data.shtTemp = sht31.readTemperature();
     data.humidity = sht31.readHumidity();
@@ -439,19 +204,7 @@ bool checkBattVoltage() {
 //===INITIALIZATION FUNCTIONS===
 //==============================
 
-void initRadio() {
-    Serial.print("Initializing radio...");
-    LoRa.setPins(RFM_CS_PIN, RFM_RST_PIN, RFM_IRQ_PIN);
-    
-    if (!LoRa.begin(915E6)) {
-        Serial.println("Starting LoRa failed!");
-        while(1) { // Block further code execution
-            blinkCode((byte) RADIO_ERROR_CODE, RED);
-        }
-    }
-    LoRa.setSyncWord(0xF3);
-    Serial.println("done!");
-}
+
 
 void initFileSystem() {
 	Serial.print("Initializing SD Card...");
@@ -511,20 +264,6 @@ void initGPS() {
     Serial.println("done!"); //DEBUG
 }
 
-void initBNO055() {
-    Serial.print("Initializing IMU..."); //DEBUG
-    if (!bno.begin()) {
-        Serial.println("Failed to initialize BNO055"); //DEBUG
-        setLaunchsondeState(IMU_FAIL);
-        while(1) { // Blocks further code execution
-            blinkCode((byte) IMU_ERROR_CODE, RED);
-            // sendDiagnosticData(FATAL, "Failed to intialize BNO055"); // Broken, requires further testing 
-        }
-    }
-    bno.setExtCrystalUse(true);
-    Serial.println("done!"); //DEBUG
-}
-
 void initSHT31() {
     Serial.print("Initializing SHT31...");
     if (!sht31.begin(0x44)) { // Set to 0x45 for alternate i2c addr
@@ -550,16 +289,6 @@ void printUnknownSentence(const MicroNMEA& nmea) {
 void ppsHandler(void) {
 	ppsTriggered = true;
 	// Serial.println(\triggered!"); //DEBUG
-}
-
-bool checkSensorsReady() {
-    //If GPS has positive fix, altimeter is in range of ±1m, and IMU is calibrated return true
-    if (data.GPSFix && (data.altitude < 1 && data.altitude > -1) && bno.isFullyCalibrated()) {
-        return true;
-    }
-    else {
-        return false;
-    }
 }
 
 
