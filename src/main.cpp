@@ -3,9 +3,6 @@
 #include <SD.h>
 #include "helpers/EVEHelper.h"
 
-#define BATT_VOLTAGE_THRESHOLD 2.5 // V
-
-
 // ===========================
 // === PROTOTYPE FUNCTIONS ===
 // ===========================
@@ -32,7 +29,7 @@ void setup() {
         // sendDiagnosticData(WARN, "Launchsonde is in DIAGNOSTIC mode"); // Broken, needs more testing
         blinkCode(B1111, PURPLE); // Blink .-.- in PURPLE on the diagnostic RGB LED
     #endif
-    if (currentMode == FLIGHT) {
+    if (currentMode == FLIGHT_MODE) {
         #ifdef DIAGNOSTIC
             Serial.println("Launchsonde is in FLIGHT mode"); //DEBUG
         #endif
