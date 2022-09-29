@@ -1,5 +1,4 @@
 struct Telemetry {
-    uint8_t UUID;               // Launchsonde UUID
     float voltage;              // Battery voltage in V
     uint8_t month;              // Month from GPS data 
     uint8_t day;                // Day from GPS data

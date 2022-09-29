@@ -51,7 +51,7 @@ static void sendTelemetryData() {
     LoRa.write(UUID);
     LoRa.write(RECEIVER_UUID);
     LoRa.write(TELEMETRY_PACKET);
-    LoRa.write((uint8_t*)&data, data.packetSize);
+    LoRa.write((uint8_t*) &data, data.packetSize);
     LoRa.endPacket();
     LoRa.receive();
 }

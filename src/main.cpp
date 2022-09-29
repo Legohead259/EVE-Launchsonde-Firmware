@@ -42,9 +42,10 @@ void setup() {
 }
 
 void loop() {
-    if (currentMode == DIAGNOSTIC_MODE) { // Only check if HW mode is DIAG (D13 -> HIGH).
+    if (currentMode == DIAGNOSTIC_MODE) {
         while (Serial.available()) { // Check for commands from the Serial terminal and execute.
             executeCommand((Command) Serial.read(), Serial.read());
+            Serial.flush(); // Clear Serial port of remain characters
         }
     }
 
@@ -81,7 +82,8 @@ void loop() {
         setLaunchsondeState(READY);
     }
     else {
-        setLaunchsondeState(previousState);
+        if (data.state != previousState) // Check if state has changed
+            setLaunchsondeState(previousState);
     }
 
     if (currentMode == DIAGNOSTIC_MODE) {
@@ -89,5 +91,5 @@ void loop() {
         // printBaseStationTelemetry();
         delay(500); // Delay between readings
     }
-    // sendTelemetryData(); // Broken, needs more testing
+    sendTelemetryData(); // Broken, needs more testing
 }
