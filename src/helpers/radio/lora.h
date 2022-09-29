@@ -7,19 +7,19 @@ enum PacketType {
 };
 
 static void initRadio() {
-    #ifdef DIAGNOSTIC_MODE
+    #ifdef DIAGNOSTIC
         Serial.print("Initializing radio...");
     #endif
     LoRa.setPins(RFM_CS_PIN, RFM_RST_PIN, RFM_IRQ_PIN);
     
     if (!LoRa.begin(915E6)) {
-        #ifdef DIAGNOSTIC_MODE
+        #ifdef DIAGNOSTIC
             Serial.println("Starting LoRa failed!");
         #endif
         while(true) blinkCode(RADIO_ERROR_CODE, RED); // Block further code execution
     }
     LoRa.setSyncWord(0xF3);
-    #ifdef DIAGNOSTIC_MODE
+    #ifdef DIAGNOSTIC
         Serial.println("done!");
     #endif
 }

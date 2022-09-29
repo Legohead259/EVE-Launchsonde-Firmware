@@ -29,11 +29,11 @@ static bool calibrateInitialPressure() {
 }
 
 static void initBMP388() {
-    #ifdef DIAGNOSTIC_MODE
+    #ifdef DIAGNOSTIC
         Serial.print("Initializing BMP388...");
     #endif
     if (!bmp.begin_I2C()) {   // hardware I2C mode
-        #ifdef DIAGNOSTIC_MODE
+        #ifdef DIAGNOSTIC
             Serial.println("Failed to initialize BMP388!"); // DEBUG
         #endif
         setLaunchsondeState(ALT_FAIL);

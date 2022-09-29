@@ -8,13 +8,6 @@
 // ===========================
 
 
-void initFileSystem();
-bool checkBattVoltage();
-void pollSHT31();
-void printTelemetryData();
-void printBaseStationTelemetry();
-void ppsHandler(void);
-
 void setup() {
 	#ifdef DIAGNOSTIC
     	Serial.begin(115200);
@@ -24,7 +17,7 @@ void setup() {
     initDotStar();
 
     #ifdef DIAGNOSTIC
-        currentMode = DIAGNOSTIC;
+        currentMode = DIAGNOSTIC_MODE;
         Serial.println("Launchsonde is in DIAGNOSTIC mode"); //DEBUG
         // sendDiagnosticData(WARN, "Launchsonde is in DIAGNOSTIC mode"); // Broken, needs more testing
         blinkCode(B1111, PURPLE); // Blink .-.- in PURPLE on the diagnostic RGB LED
@@ -39,7 +32,6 @@ void setup() {
         
     setLaunchsondeState(BOOTING); // System is on and initializing
 
-    // initFilesystem();
     initRadio();
     initGPS();
     // initBNO055();

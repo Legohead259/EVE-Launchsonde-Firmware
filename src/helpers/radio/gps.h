@@ -4,7 +4,6 @@
 HardwareSerial& gps = Serial1;
 char nmeaBuffer[100];
 MicroNMEA nmea(nmeaBuffer, sizeof(nmeaBuffer));
-bool ledState = LOW;
 volatile bool ppsTriggered = false;
 uint8_t lastSecond = 0;
 float lastMillis = millis();
@@ -61,25 +60,25 @@ static void pollGPS() {
     }
 
     //Parse timestamp
-    sprintf(data.timestamp, "%02d:%02d:%02d:%03d", nmea.getHour(), nmea.getMinute(), nmea.getSecond(), (int) curMSecond);
+    data.year = nmea.getYear();
+    data.month = nmea.getMonth();
+    data.day = nmea.getDay();
+    data.hour = nmea.getHour();
+    data.minute = nmea.getMinute();
+    data.second = nmea.getSecond();
+    data.msecond = curMSecond;
 
     //Update NMEA string based on PPS pulse from GPS. By default refresh rate is 1Hz
-    if (ppsTriggered) {
-        ppsTriggered = false;
-        ledState = !ledState;
-        digitalWrite(LED_BUILTIN, ledState);
+    data.GPSFix = nmea.isValid();
+    data.numSats = nmea.getNumSatellites();
+    data.HDOP = nmea.getHDOP();
+    data.latitude = nmea.getLatitude();
+    data.longitude = nmea.getLongitude();
+    // nmea.getAltitude(data.altitudeMSL);
+    data.GPSSpeed = nmea.getSpeed();
+    data.GPSCourse = nmea.getCourse();
 
-        data.GPSFix = nmea.isValid();
-        data.numSats = nmea.getNumSatellites();
-        data.HDOP = nmea.getHDOP();
-        data.latitude = nmea.getLatitude();
-        data.longitude = nmea.getLongitude();
-        // nmea.getAltitude(data.altitudeMSL);
-        data.GPSSpeed = nmea.getSpeed();
-        data.GPSCourse = nmea.getCourse();
-    }
-
-    while (!ppsTriggered && gps.available()) {
+    while (gps.available()) {
         char c = gps.read();
         nmea.process(c);
     }
