@@ -64,6 +64,19 @@ const uint32_t CYAN     =  strip.Color(255, 255, 0);
 const uint32_t LIME     =  strip.Color(0, 255, 125);
 
 // Functions
+static void initDotStar() {
+    #ifdef DIAGNOSTIC_MODE
+        Serial.begin("Initializing DotStar RGB LED...");
+    #endif
+    strip.begin(); // Initialize pins for output
+    strip.setBrightness(50);
+    strip.clear(); // Turn all LEDs off ASAP
+    strip.show();  
+    #ifdef DIAGNOSTIC_MODE
+        Serial.begin("done!");
+    #endif
+}
+
 static void blinkCode(byte code, uint32_t color) {
     bool dash = true;
     for (int n=0; n<4; n++) {
