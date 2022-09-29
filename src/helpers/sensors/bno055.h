@@ -10,11 +10,13 @@ bool calDataLoaded;
 
 static void initBNO055() {
     Serial.print("Initializing IMU..."); //DEBUG
+    pinMode(BNO_RST_PIN, OUTPUT);
+    pinMode(BNO_RST_PIN, HIGH);
     if (!bno.begin()) {
         Serial.println("Failed to initialize BNO055"); //DEBUG
         setLaunchsondeState(IMU_FAIL);
         while(1) { // Blocks further code execution
-            blinkCode((byte) IMU_ERROR_CODE, RED);
+            blinkCode(IMU_ERROR_CODE, RED);
             // sendDiagnosticData(FATAL, "Failed to intialize BNO055"); // Broken, requires further testing 
         }
     }
