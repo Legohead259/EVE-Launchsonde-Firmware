@@ -52,7 +52,7 @@ enum ErrorCode {
 #define BLINK_INTERVAL 125
 #define MESSAGE_INTERVAL 1000
 
-Adafruit_DotStar strip(1, DOTSTAR_DATA_PIN, DOTSTAR_CLK_PIN, DOTSTAR_RBG);
+Adafruit_DotStar strip(1, DOTSTAR_DATA_PIN, DOTSTAR_CLK_PIN, DOTSTAR_RGB);
 const uint32_t OFF      =  strip.Color(0, 0, 0);       //BGR
 const uint32_t WHITE    =  strip.Color(255, 255, 255);
 const uint32_t BLUE     =  strip.Color(255, 0, 0);
@@ -65,15 +65,15 @@ const uint32_t LIME     =  strip.Color(0, 255, 125);
 
 // Functions
 static void initDotStar() {
-    #ifdef DIAGNOSTIC_MODE
-        Serial.begin("Initializing DotStar RGB LED...");
+    #ifdef DIAGNOSTIC
+        Serial.print("Initializing DotStar RGB LED...");
     #endif
     strip.begin(); // Initialize pins for output
     strip.setBrightness(50);
     strip.clear(); // Turn all LEDs off ASAP
     strip.show();  
-    #ifdef DIAGNOSTIC_MODE
-        Serial.begin("done!");
+    #ifdef DIAGNOSTIC
+        Serial.println("done!");
     #endif
 }
 
