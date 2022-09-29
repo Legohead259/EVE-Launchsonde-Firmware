@@ -3,7 +3,7 @@ enum Mode_t {
     DIAGNOSTIC_MODE     // Package will send diagnostic telemetry over the serial port and will not begin code execution until a serial connection is opened.
 };
 
-Mode_t currentMode = FLIGHT;
+Mode_t currentMode = FLIGHT_MODE;
 
 static void getModeString(char* outStr, Mode_t m)  {
     switch(m) {
