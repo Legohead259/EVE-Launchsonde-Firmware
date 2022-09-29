@@ -1,11 +1,13 @@
-#include <Arduino.h>
-
 struct Telemetry {
+    uint8_t UUID;               // Launchsonde UUID
     float voltage;              // Battery voltage in V
     uint8_t month;              // Month from GPS data 
     uint8_t day;                // Day from GPS data
     uint16_t year;              // Year from GPS data
-    char timestamp[32];         // Timestamp in UTC obtained from GPS satellites
+    uint8_t hour;               // Hour from GPS data (UTC)
+    uint8_t minute;             // Minute from GPS data
+    uint8_t second;             // Second from GPS data
+    uint16_t msecond;           // Milliseconds since last report
     bool GPSFix;                // If GPS has positive fix on location
     uint8_t numSats;            // Number of satellites GPS is communicating with
     uint8_t HDOP;               // Accuracy of GPS reading. Lower is better. In tenths (divide by 10. when displaying)
@@ -14,7 +16,7 @@ struct Telemetry {
     long GPSSpeed;              // In thousandths of a knot (divide by 1000. when displaying)
     long GPSCourse;             // In thousandths of a degree (divide by 1000. when displaying)
     float baroTemp;             // °Celsius from the MPL3115A2
-    float pressure;            // Pa
+    float pressure;             // Pa
     float altitude;             // In meters Above Ground Level
     uint8_t sysCal = 0;         // IMU system calibration, 0-3 with 3 being fully calibrated
     uint8_t gyroCal = 0;        // IMU gyroscope calibration, 0-3 with 3 being fully calibrated

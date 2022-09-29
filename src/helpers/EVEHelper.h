@@ -47,7 +47,10 @@ static void printTelemetryData() {
     Serial.print("GPS month:        "); Serial.print(data.month);               Serial.println();
     Serial.print("GPS day:          "); Serial.print(data.day);                 Serial.println();
     Serial.print("GPS year:         "); Serial.print(data.year);                Serial.println();
-    Serial.print("Timestamp:        "); Serial.print(data.timestamp);           Serial.println(" [hh:mm:ss:mss]");
+    Serial.print("GPS hour:         "); Serial.print(data.hour);                Serial.println();
+    Serial.print("GPS minute:       "); Serial.print(data.minute);              Serial.println();
+    Serial.print("GPS second:       "); Serial.print(data.second);              Serial.println();
+    Serial.print("Milliseconds:     "); Serial.print(data.msecond);             Serial.println();
     Serial.print("GPS fix:          "); Serial.print(data.GPSFix);              Serial.println();
     Serial.print("# of sats:        "); Serial.print(data.numSats);             Serial.println();
     Serial.print("GPS HDOP:         "); Serial.print(data.HDOP/10);             Serial.println();
@@ -85,7 +88,11 @@ static void printTelemetryData() {
  * Prints out telemetry data in the format expected by the base station. For testing purposes only!
 */
 static void printBaseStationTelemetry() {
-    Serial.print(data.timestamp); Serial.print(',');
+    // Parse timestamp
+    char _buf[64];
+    sprintf(_buf, "%04d-%02d-%02dT%02d:%02d:%02d.%03d", data.year, data.month, data.day, data.hour, data.minute, data.second, data.msecond);
+
+    Serial.print(_buf); Serial.print(',');
     Serial.print(data.voltage); Serial.print(',');
     Serial.print(data.GPSFix); Serial.print(',');
     Serial.print(data.numSats); Serial.print(',');
