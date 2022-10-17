@@ -75,8 +75,9 @@ void loop() {
 		// pollBNO055();
 		pollBMP388();
 		pollSHT31();
+        data.packetSize = sizeof(data);
+        sendTelemetryData(); // Broken, needs more testing
 	}
-    data.packetSize = sizeof(data);
 
     if (data.state == STANDBY && checkSensorsReady()) { // Check if sensors are calibrated
         setLaunchsondeState(READY);
@@ -91,5 +92,4 @@ void loop() {
         // printBaseStationTelemetry();
         delay(500); // Delay between readings
     }
-    sendTelemetryData(); // Broken, needs more testing
 }
